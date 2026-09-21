@@ -1,0 +1,9 @@
+{
+  "id": "com.magq.koreader",
+  "version": "1.0.1",
+  "vendor": "MAGQ",
+  "type": "pdk",
+  "main": "webos-launcher",
+  "title": "KOReader",
+  "icon": "icon.png"
+}

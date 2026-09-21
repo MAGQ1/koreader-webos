@@ -1,0 +1,9 @@
+{
+  "id": "com.koreader.hellotest",
+  "version": "1.0.0",
+  "vendor": "KOReader webOS port",
+  "type": "pdk",
+  "main": "hellotest",
+  "title": "Hello Test",
+  "icon": "icon.png"
+}

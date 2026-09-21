@@ -1,0 +1,9 @@
+# Scripts run on Linux (WSL) and on the tablet: they must keep Unix line endings even when checked out on Windows.
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.lua text eol=lf
+*.c text eol=lf
+*.json text eol=lf
+*.ps1 text eol=crlf
+*.png binary

@@ -1,0 +1,11 @@
+# Build outputs (large, and rebuilt by webos/build.sh + webos/package.sh)
+build/
+*.ipk
+hellotest/package/hellotest
+
+# Editor / OS noise
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+*.swp
