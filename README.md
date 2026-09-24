@@ -41,9 +41,13 @@ Build tool versions matter (meson >= 1.2, ninja >= 1.13, GNU make >= 4.4); see `
 
 ## License
 
-KOReader is licensed under the **AGPL-3.0**. The files in `overlay/files/` and the edits in
-`overlay/transforms.py` are derived from KOReader's code and must be distributed under the same license.
-A license for this repository as a whole has not been chosen yet; the repository is private for now.
+This repository is licensed under the **GNU Affero General Public License v3.0** (see `LICENSE`) —
+Copyright (C) 2026 MAGQ. KOReader itself, and MuPDF (one of the libraries it uses), are also AGPL-3.0;
+the files in `overlay/files/` and the edits in `overlay/transforms.py` are derived from KOReader's code
+and are distributed under the same license for that reason. KOReader's own source is not copied into
+this repository: `webos/update-koreader.sh` fetches it fresh from
+[the upstream project](https://github.com/koreader/koreader), and this port applies only the thin
+webOS-specific layer described above on top of it.
 
 ## Credits
 
