@@ -37,8 +37,8 @@ echo "== bundled C++ runtime (the device's is from 2008)"
 SYS=$TC/arm-webos-linux-gnueabi/sysroot/lib
 cp -L "$SYS/libstdc++.so.6" "$SYS/libgcc_s.so.1" "$STAGE/koreader/libs/"
 
-echo "== appinfo + icon"
-cp "$HERE/appinfo.json" "$HERE/icon.png" "$STAGE/"
+echo "== appinfo + icons"
+cp "$HERE/appinfo.json" "$HERE/icon.png" "$HERE/miniicon.png" "$STAGE/"
 
 echo "== done"
 du -sh "$STAGE"

@@ -15,7 +15,7 @@ applied on top of an untouched KOReader checkout, so newer KOReader releases are
 
 | Folder | What it is |
 |---|---|
-| `overlay/files/` | New files: a webOS device for KOReader (SDL 1.2 + PDL screen, multitouch, tilt-sensor rotation) |
+| `overlay/files/` | New files: a webOS device for KOReader (SDL 1.2 + PDL screen, multitouch, tilt-sensor rotation) and `plugins/webosupdate.koplugin/`, a KOReader plugin that checks the [webOS App Museum](https://webosarchive.org) for a newer version of this port |
 | `overlay/transforms.py` | The few edits to KOReader's own files. Idempotent, and it finds its place by meaning, so it survives upstream changes; it stops with a clear message if something it needs is gone |
 | `webos/` | The native launcher, app metadata, and the build, package, install and update scripts |
 | `toolchain/` | Script that builds the ARM cross-compiler (modern GCC against an old glibc) |
@@ -38,6 +38,17 @@ Build tool versions matter (meson >= 1.2, ninja >= 1.13, GNU make >= 4.4); see `
 - On webOS CE the SDK's `palm-install` / `palm-launch` refuse to talk to the device ("unrecognized device
   version"); `webos/install.ps1` falls back to installing by hand with `ipkg`.
 - Books go anywhere in the TouchPad's USB storage; KOReader keeps its settings in `koreader/` there.
+
+## Checking for updates
+
+KOReader itself has no permission to talk to other apps or system services on webOS — only the native
+launcher does, since webOS ties Luna permissions to the exact executable it started. So "Check for
+KOReader updates" (a menu item, plus a quiet check on startup) queries the App Museum from inside
+KOReader as usual, but installing an update works by handing off: KOReader writes the download link to a
+file and quits with a dedicated exit code, and `webos/launcher.c` — still running, since it started
+KOReader and waits for it to exit — reads that, briefly opens a window, and asks **Preware** to install
+the update, which shows its own confirmation. See `CLAUDE.md` for the full story, including the failed
+approaches along the way.
 
 ## License
 
