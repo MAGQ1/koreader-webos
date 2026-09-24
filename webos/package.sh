@@ -37,9 +37,8 @@ echo "== bundled C++ runtime (the device's is from 2008)"
 SYS=$TC/arm-webos-linux-gnueabi/sysroot/lib
 cp -L "$SYS/libstdc++.so.6" "$SYS/libgcc_s.so.1" "$STAGE/koreader/libs/"
 
-echo "== appinfo + icon + jail self-test"
+echo "== appinfo + icon"
 cp "$HERE/appinfo.json" "$HERE/icon.png" "$STAGE/"
-cp "$HERE/netprobe.lua" "$STAGE/koreader/webos-netprobe.lua"
 
 echo "== done"
 du -sh "$STAGE"

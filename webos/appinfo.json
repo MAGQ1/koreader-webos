@@ -1,6 +1,6 @@
 {
   "id": "com.magq.koreader",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "vendor": "MAGQ",
   "type": "pdk",
   "main": "webos-launcher",

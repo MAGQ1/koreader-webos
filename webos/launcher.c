@@ -41,6 +41,12 @@
 #define KO_RESTART_CODE 85
 /* Safety net: never restart-loop forever if KOReader dies at startup with code 85 every time. */
 #define MAX_RESTARTS_PER_MINUTE 5
+/* The exit code KOReader uses to say "I queued an update; read the URL file and hand it to Preware,
+ * then don't restart me" (see plugins/webosupdate.koplugin/main.lua). Distinct from KOReader's own
+ * reserved codes: 85 restart, 86 mass storage, 87 Cervantes BQ launch, 88 Kobo poweroff/reboot. */
+#define INSTALL_UPDATE_CODE 89
+/* Written by the plugin right before it quits with INSTALL_UPDATE_CODE; read once, then removed. */
+#define UPDATE_URL_FILE DATA_DIR "/webos-update-url"
 
 static int log_fd = -1;
 static volatile pid_t child_pid = -1;
@@ -77,63 +83,94 @@ static void forward_signal(int sig)
 }
 
 /*
- * Diagnostics (marker file net-probe): can THIS process, the one webOS launched and whose path is bound
- * to the app's Luna permission file, call system services and open a browser through PDL?
+ * Shared by install_update() below: logs the async reply from a PDL_ServiceCallWithCallback.
  * libpdl is loaded at runtime so the launcher has no build-time dependency on the PDK.
  */
-static void pdl_probe(void)
+static const char *(*g_get_json)(void *);
+
+static int pdl_reply(void *params, void *user)
+{
+    (void) user;
+    logf_("PDL reply: %s\n", g_get_json ? g_get_json(params) : "(PDL_GetParamJson missing)");
+    return 1;
+}
+
+/*
+ * KOReader asked us to install an update (exit code INSTALL_UPDATE_CODE): hand the download link to
+ * Preware. This needs a real screen and a running SDL event loop to actually be delivered and
+ * answered -- confirmed on the device 2026-09-23; a bare service call without those returns 0 but
+ * nothing happens.
+ */
+static void install_update(void)
 {
     typedef int (*init_fn)(unsigned int);
-    typedef int (*call_fn)(const char *, const char *);
-    typedef int (*browser_fn)(const char *);
+    typedef int (*callcb_fn)(const char *, const char *, int (*)(void *, void *), void *, int);
     typedef const char *(*err_fn)(void);
-    typedef int (*sdl_init_fn)(unsigned int);
-    typedef void *(*sdl_mode_fn)(int, int, int, unsigned int);
-    void *pdl = dlopen("libpdl.so", RTLD_NOW | RTLD_GLOBAL);
-    void *sdl = dlopen("libSDL-1.2.so.0", RTLD_NOW | RTLD_GLOBAL);
+    char url[1024] = "";
+    char payload[1700];
+    void *pdl, *sdl;
     init_fn pdl_init;
-    call_fn pdl_call;
-    browser_fn pdl_browser;
+    callcb_fn pdl_callcb;
     err_fn pdl_err;
-    int r;
+    int (*sdl_init)(unsigned int);
+    void *(*sdl_mode)(int, int, int, unsigned int);
+    int (*sdl_poll)(void *);
+    void (*sdl_delay)(unsigned int);
+    int fd, i, r;
+    ssize_t n;
 
+    fd = open(UPDATE_URL_FILE, O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, url, sizeof(url) - 1);
+        close(fd);
+        if (n > 0) {
+            while (n > 0 && (url[n - 1] == '\n' || url[n - 1] == '\r'))
+                url[--n] = '\0';
+        }
+    }
+    /* We own this file exclusively (the plugin writes it right before the matching exit): remove it
+     * now, before attempting the install, so a crash here can never cause a silent retry loop. */
+    unlink(UPDATE_URL_FILE);
+    if (!url[0]) {
+        logf_("update: exit code %d but %s was empty or missing\n", INSTALL_UPDATE_CODE, UPDATE_URL_FILE);
+        return;
+    }
+    logf_("update: installing %s\n", url);
+
+    pdl = dlopen("libpdl.so", RTLD_NOW | RTLD_GLOBAL);
+    sdl = dlopen("libSDL-1.2.so.0", RTLD_NOW | RTLD_GLOBAL);
     if (!pdl || !sdl) {
-        logf_("probe: dlopen failed: %s\n", dlerror());
+        logf_("update: dlopen failed: %s\n", dlerror());
         return;
     }
     pdl_init = (init_fn) dlsym(pdl, "PDL_Init");
-    pdl_call = (call_fn) dlsym(pdl, "PDL_ServiceCall");
-    pdl_browser = (browser_fn) dlsym(pdl, "PDL_LaunchBrowser");
+    pdl_callcb = (callcb_fn) dlsym(pdl, "PDL_ServiceCallWithCallback");
     pdl_err = (err_fn) dlsym(pdl, "PDL_GetError");
-    if (!pdl_init || !pdl_call || !pdl_browser || !pdl_err) {
-        logf_("probe: dlsym failed\n");
+    g_get_json = (const char *(*)(void *)) dlsym(pdl, "PDL_GetParamJson");
+    sdl_init = (int (*)(unsigned int)) dlsym(sdl, "SDL_Init");
+    sdl_mode = (void *(*)(int, int, int, unsigned int)) dlsym(sdl, "SDL_SetVideoMode");
+    sdl_poll = (int (*)(void *)) dlsym(sdl, "SDL_PollEvent");
+    sdl_delay = (void (*)(unsigned int)) dlsym(sdl, "SDL_Delay");
+    if (!pdl_init || !pdl_callcb || !pdl_err || !sdl_init || !sdl_mode || !sdl_poll || !sdl_delay) {
+        logf_("update: dlsym failed\n");
         return;
     }
 
-    logf_("probe: (launcher process) PDL_Init -> %d\n", pdl_init(0));
-    /* 1: no window in this process */
-    r = pdl_call("palm://com.palm.applicationManager/open", "{\"id\":\"com.palm.app.calculator\"}");
-    logf_("probe: 1 open Calculator (no window) -> %d [%s]\n", r, pdl_err());
-    sleep(6);
-    r = pdl_browser("http://appcatalog.webosarchive.org/");
-    logf_("probe: 2 open browser (no window) -> %d [%s]\n", r, pdl_err());
-    sleep(8);
+    logf_("update: PDL_Init -> %d\n", pdl_init(0));
+    logf_("update: SDL_Init -> %d\n", sdl_init(0x20));
+    logf_("update: window %s\n", sdl_mode(1024, 768, 16, 0x80000000u) ? "up" : "FAILED");
 
-    /* 2: with a window, like a real app */
-    {
-        sdl_init_fn sdl_init = (sdl_init_fn) dlsym(sdl, "SDL_Init");
-        sdl_mode_fn sdl_mode = (sdl_mode_fn) dlsym(sdl, "SDL_SetVideoMode");
-        if (sdl_init && sdl_mode) {
-            logf_("probe: SDL_Init -> %d, window %s\n", sdl_init(0x20),
-                  sdl_mode(1024, 768, 16, 0x80000000u) ? "ok" : "FAILED");
-            sleep(1);
-            r = pdl_call("palm://com.palm.applicationManager/open", "{\"id\":\"com.palm.app.calculator\"}");
-            logf_("probe: 3 open Calculator (with window) -> %d [%s]\n", r, pdl_err());
-            sleep(6);
-            r = pdl_browser("http://appcatalog.webosarchive.org/");
-            logf_("probe: 4 open browser (with window) -> %d [%s]\n", r, pdl_err());
-            sleep(8);
-        }
+    snprintf(payload, sizeof(payload),
+             "{\"id\":\"org.webosinternals.preware\",\"params\":{\"type\":\"install\",\"file\":\"%s\"}}", url);
+    r = pdl_callcb("palm://com.palm.applicationManager/open", payload, pdl_reply, NULL, 1);
+    logf_("update: Preware install call -> %d [%s]\n", r, pdl_err());
+
+    /* Keep the screen's event loop running: the call and its reply need it. */
+    for (i = 0; i < 800; i++) { /* about 12 seconds */
+        unsigned char ev[64];
+        while (sdl_poll(ev))
+            ;
+        sdl_delay(15);
     }
 }
 
@@ -190,9 +227,6 @@ static int run_koreader(const char *kodir)
             fprintf(stderr, "launcher: chdir(%s) failed: %s\n", kodir, strerror(errno));
             _exit(1);
         }
-        /* Diagnostics: with this marker file present, run the jail self-test instead of KOReader. */
-        if (access(DATA_DIR "/net-probe", F_OK) == 0)
-            execl("./luajit", "luajit", "./webos-netprobe.lua", (char *) NULL);
         /* The launch parameter ("{ }") is deliberately not forwarded: KOReader would treat it as a path. */
         execl("./luajit", "luajit", "./reader.lua", "/media/internal", (char *) NULL);
         fprintf(stderr, "launcher: exec ./luajit failed: %s\n", strerror(errno));
@@ -291,9 +325,6 @@ int main(int argc, char **argv)
     }
     logf_("launcher: exe=%s\nlauncher: cwd=%s\nlauncher: pid=%ld\n", exe, kodir, (long) getpid());
 
-    if (access(DATA_DIR "/net-probe", F_OK) == 0)
-        pdl_probe();
-
     for (;;) {
         set_timezone(); /* every time: the user may have changed it since the last start */
         logf_("launcher: starting luajit\n");
@@ -301,6 +332,11 @@ int main(int argc, char **argv)
 
         if (status == -1 || terminating)
             break;
+        if (WIFEXITED(status) && WEXITSTATUS(status) == INSTALL_UPDATE_CODE) {
+            logf_("launcher: update install requested (exit code %d)\n", INSTALL_UPDATE_CODE);
+            install_update();
+            break;
+        }
         if (!(WIFEXITED(status) && WEXITSTATUS(status) == KO_RESTART_CODE))
             break;
 
