@@ -7,6 +7,10 @@ Vendor: MAGQ
 
 KOReader, the full-featured e-book reader, ported natively to the HP TouchPad.
 
+## Brief description
+
+KOReader is a free, full-featured e-book reader, natively ported to the HP TouchPad. Read EPUB, PDF, DjVu, CBZ, MOBI and more, with adjustable fonts, bookmarks, highlights, dictionary lookup and automatic screen rotation. An unofficial community port; requires webOS 3.0.5 or later.
+
 ## Full description
 
 An unofficial native port of KOReader — the open-source document reader used on many e-readers — to the HP TouchPad running webOS 3.0.5 or later.
