@@ -39,6 +39,14 @@ try {
     $ipk = Get-ChildItem $out -Filter "$($info.id)_$($info.version)_*.ipk" | Select-Object -First 1
     if (-not $ipk) { throw "palm-package did not produce an .ipk" }
     Write-Host ("== {0}  ({1:N1} MB)" -f $ipk.Name, ($ipk.Length / 1MB))
+
+    # Keep store/ (the App Museum submission folder) holding the freshest build, always.
+    $store = "$root\store"
+    New-Item -ItemType Directory -Force $store | Out-Null
+    Get-ChildItem $store -Filter "$($info.id)_*.ipk" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Copy-Item $ipk.FullName "$store\$($ipk.Name)"
+    Write-Host "== copied to store\$($ipk.Name)"
+
     if ($NoInstall) { return }
 
     Write-Host "== palm-install (bump `"version`" in webos/appinfo.json if this is a re-install)"
