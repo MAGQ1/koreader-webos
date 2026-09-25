@@ -32,3 +32,13 @@ Requires an HP TouchPad running webOS 3.0.5 or later (tested on webOS CE 3.1.0).
 ## Keywords
 
 ebook, reader, epub, pdf, koreader, books, reading, document
+
+## Changelog
+
+### 1.0.0 — initial release
+
+- Full KOReader v2026.07.2 reading engine: EPUB, PDF, DjVu, CBZ/CBR, MOBI, FB2 and more
+- Native SDL 1.2 + PDL screen and multitouch layer
+- Automatic screen rotation (tilt sensor)
+- Adjustable screen size (DPI)
+- "Check for KOReader updates" — checks the webOS App Museum and installs updates via Preware

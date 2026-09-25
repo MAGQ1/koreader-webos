@@ -4,7 +4,7 @@ Everything needed to submit/update the listing lives here:
 
 | File | What it is | Kept current how |
 |---|---|---|
-| `DESCRIPTION.md` | Title, tagline, full description, keywords to paste into the listing form | Edited by hand when the app's features/description change |
+| `DESCRIPTION.md` | Title, tagline, descriptions, keywords and changelog to paste into the listing form | Edited by hand when the app's features/description change; add a new changelog entry each release |
 | `icon-256.png` | Larger icon for the store listing page (same artwork as `webos/icon.png`, scaled up) | Regenerate if `webos/icon.png`'s source art ever changes (see below) |
 | `icon-64.png` | The actual 64x64 launcher icon, a copy of `webos/icon.png` | Copy over again if `webos/icon.png` changes |
 | `screenshots/` | Screenshots for the listing (Orange+Sym+P on the device saves to the tablet; copy them here) | Added by hand, whenever you take new ones |
